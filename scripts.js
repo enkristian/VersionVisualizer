@@ -201,16 +201,16 @@ function generateData() {
 }
 
 /**
- * Update the first version data with new dates
+ * Update any version data with new dates
  */
-function updateFirstVersion(publishDate, startDate, endDate) {
-    if (chartData.length > 0) {
-        chartData[0].publishDate = publishDate.getTime();
-        chartData[0].open = startDate.getTime();
-        chartData[0].close = endDate.getTime();
-        chartData[0].publishDateFormatted = publishDate.toLocaleDateString();
-        chartData[0].validityStartFormatted = startDate.toLocaleDateString();
-        chartData[0].validityEndFormatted = endDate.toLocaleDateString();
+function updateVersionData(versionIndex, publishDate, startDate, endDate) {
+    if (chartData.length > versionIndex) {
+        chartData[versionIndex].publishDate = publishDate.getTime();
+        chartData[versionIndex].open = startDate.getTime();
+        chartData[versionIndex].close = endDate.getTime();
+        chartData[versionIndex].publishDateFormatted = publishDate.toLocaleDateString();
+        chartData[versionIndex].validityStartFormatted = startDate.toLocaleDateString();
+        chartData[versionIndex].validityEndFormatted = endDate.toLocaleDateString();
 
         // Update chart with new data
         setData(chartData);
@@ -225,31 +225,72 @@ function dateToInputFormat(date) {
 }
 
 /**
- * Initialize form controls with current version 1 data
+ * Create form controls for a specific version
+ */
+function createVersionForm(versionIndex, versionData) {
+    var versionNum = versionIndex + 1;
+    var formHtml = `
+        <div class="version-controls">
+            <div class="version-title">${versionData.version} (${versionData.category})</div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="publishDate${versionNum}">Published Date:</label>
+                    <input type="date" id="publishDate${versionNum}" value="${dateToInputFormat(new Date(versionData.publishDate))}" />
+                </div>
+                <div class="form-group">
+                    <label for="startDate${versionNum}">Start Date:</label>
+                    <input type="date" id="startDate${versionNum}" value="${dateToInputFormat(new Date(versionData.open))}" />
+                </div>
+                <div class="form-group">
+                    <label for="endDate${versionNum}">End Date:</label>
+                    <input type="date" id="endDate${versionNum}" value="${dateToInputFormat(new Date(versionData.close))}" />
+                </div>
+            </div>
+        </div>
+    `;
+    return formHtml;
+}
+
+/**
+ * Initialize form controls for all versions
  */
 function initializeFormControls() {
-    if (chartData.length > 0) {
-        var version1 = chartData[0];
+    var formsContainer = document.getElementById('version-forms');
+    var formsHtml = '';
 
-        // Set form values
-        document.getElementById('publishDate').value = dateToInputFormat(new Date(version1.publishDate));
-        document.getElementById('startDate').value = dateToInputFormat(new Date(version1.open));
-        document.getElementById('endDate').value = dateToInputFormat(new Date(version1.close));
+    // Generate forms for all versions
+    for (var i = 0; i < chartData.length; i++) {
+        formsHtml += createVersionForm(i, chartData[i]);
+    }
 
-        // Add event listeners
-        document.getElementById('publishDate').addEventListener('change', handleDateChange);
-        document.getElementById('startDate').addEventListener('change', handleDateChange);
-        document.getElementById('endDate').addEventListener('change', handleDateChange);
+    formsContainer.innerHTML = formsHtml;
+
+    // Add event listeners for all versions
+    for (var i = 0; i < chartData.length; i++) {
+        var versionNum = i + 1;
+        document.getElementById('publishDate' + versionNum).addEventListener('change', createDateChangeHandler(i));
+        document.getElementById('startDate' + versionNum).addEventListener('change', createDateChangeHandler(i));
+        document.getElementById('endDate' + versionNum).addEventListener('change', createDateChangeHandler(i));
     }
 }
 
 /**
- * Handle date input changes
+ * Create a date change handler for a specific version
  */
-function handleDateChange() {
-    var publishDateInput = document.getElementById('publishDate').value;
-    var startDateInput = document.getElementById('startDate').value;
-    var endDateInput = document.getElementById('endDate').value;
+function createDateChangeHandler(versionIndex) {
+    return function() {
+        handleDateChange(versionIndex);
+    };
+}
+
+/**
+ * Handle date input changes for a specific version
+ */
+function handleDateChange(versionIndex) {
+    var versionNum = versionIndex + 1;
+    var publishDateInput = document.getElementById('publishDate' + versionNum).value;
+    var startDateInput = document.getElementById('startDate' + versionNum).value;
+    var endDateInput = document.getElementById('endDate' + versionNum).value;
 
     if (publishDateInput && startDateInput && endDateInput) {
         var publishDate = new Date(publishDateInput);
@@ -258,20 +299,20 @@ function handleDateChange() {
 
         // Validate dates
         if (startDate < publishDate) {
-            alert('Start date cannot be before published date');
-            document.getElementById('startDate').value = dateToInputFormat(publishDate);
+            alert('Start date cannot be before published date for ' + chartData[versionIndex].version);
+            document.getElementById('startDate' + versionNum).value = dateToInputFormat(publishDate);
             startDate = publishDate;
         }
 
         if (endDate <= startDate) {
-            alert('End date must be after start date');
+            alert('End date must be after start date for ' + chartData[versionIndex].version);
             var minEndDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000); // Add 1 day
-            document.getElementById('endDate').value = dateToInputFormat(minEndDate);
+            document.getElementById('endDate' + versionNum).value = dateToInputFormat(minEndDate);
             endDate = minEndDate;
         }
 
         // Update chart
-        updateFirstVersion(publishDate, startDate, endDate);
+        updateVersionData(versionIndex, publishDate, startDate, endDate);
     }
 }
 

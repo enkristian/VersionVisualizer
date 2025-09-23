@@ -25,10 +25,30 @@
             color: #333;
         }
 
-        .form-group {
-            display: inline-block;
-            margin-right: 20px;
+        .version-controls {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: white;
+            border-radius: 5px;
+            border-left: 4px solid #007acc;
+        }
+
+        .version-title {
+            font-weight: bold;
             margin-bottom: 10px;
+            color: #333;
+            font-size: 16px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .form-group {
+            flex: 1;
+            min-width: 150px;
         }
 
         .form-group label {
@@ -36,30 +56,30 @@
             margin-bottom: 5px;
             font-weight: bold;
             color: #555;
+            font-size: 12px;
         }
 
         .form-group input {
+            width: 100%;
             padding: 8px;
             border: 1px solid #ccc;
             border-radius: 4px;
             font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #007acc;
+            box-shadow: 0 0 3px rgba(0, 122, 204, 0.3);
         }
     </style>
 </head>
 <body>
     <div class="controls">
-        <h3>Version 1 Controls</h3>
-        <div class="form-group">
-            <label for="publishDate">Published Date:</label>
-            <input type="date" id="publishDate" />
-        </div>
-        <div class="form-group">
-            <label for="startDate">Start Date:</label>
-            <input type="date" id="startDate" />
-        </div>
-        <div class="form-group">
-            <label for="endDate">End Date:</label>
-            <input type="date" id="endDate" />
+        <h3>Version Date Controls</h3>
+        <div id="version-forms">
+            <!-- Forms will be dynamically generated here -->
         </div>
     </div>
 
