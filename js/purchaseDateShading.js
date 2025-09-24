@@ -1,3 +1,4 @@
+import { InteractiveDateLine } from './interactiveDateLine.js';
 /**
  * Purchase Date Shading Module
  * Handles the visual indicators for purchase date including cross-hair lines and outdated area shading
@@ -9,10 +10,8 @@ export class PurchaseDateShading {
         this.xAxis = xAxis;
         this.yAxis = yAxis;
         this.purchaseDate = purchaseDate;
-
-        // Series references
-        this.verticalLineSeries = null;
-        this.horizontalLineSeries = null;
+        // Deprecated individual line series now replaced by generic interactive line
+        this.purchaseDateLine = null; // InteractiveDateLine instance (crosshair)
         this.outdatedAreaSeries = null;
 
         this.initialize();
@@ -56,64 +55,38 @@ export class PurchaseDateShading {
      * Create the cross-hair lines for purchase date only
      */
     createPurchaseDateLines() {
-        // Purchase date vertical line
-        this.verticalLineSeries = this.chart.series.push(am5xy.LineSeries.new(this.chart.root, {
-            name: "Purchase Date Vertical Line",
-            xAxis: this.xAxis,
-            yAxis: this.yAxis,
-            valueXField: "x",
-            valueYField: "y",
-            stroke: am5.color("#999"),
-            strokeWidth: 2,
-            strokeDasharray: [5, 5]
-        }));
-
-        // Purchase date horizontal line
-        this.horizontalLineSeries = this.chart.series.push(am5xy.LineSeries.new(this.chart.root, {
-            name: "Purchase Date Horizontal Line",
-            xAxis: this.xAxis,
-            yAxis: this.yAxis,
-            valueXField: "x",
-            valueYField: "y",
-            stroke: am5.color("#999"),
-            strokeWidth: 2,
-            strokeDasharray: [5, 5]
-        }));
+        // Replace two separate series with one InteractiveDateLine crosshair
+        this.purchaseDateLine = new InteractiveDateLine(this.chart, this.xAxis, this.yAxis, {
+            value: this.purchaseDate,
+            axisMode: 'x', // changed from 'both' to allow horizontal drag only
+            color: '#999',
+            onChange: (val, live) => {
+                this.purchaseDate = val;
+                if (!live) {
+                    this.updateVisuals();
+                } else if (this.outdatedAreaSeries) {
+                    this._updateOutdatedAreaOnly();
+                }
+            }
+        });
     }
 
     /**
      * Update all visual elements
      */
     updateVisuals() {
-        if (!this.verticalLineSeries || !this.horizontalLineSeries || !this.outdatedAreaSeries) {
-            return;
-        }
+        if (!this.outdatedAreaSeries) return;
+        if (this.purchaseDateLine) this.purchaseDateLine.updateVisuals();
+        this._updateOutdatedAreaOnly();
+    }
 
-        const xMin = this.xAxis.get("min");
-        const xMax = this.xAxis.get("max");
-        const yMin = this.yAxis.get("min");
-        const yMax = this.yAxis.get("max");
-
-        const verticalLineData = [
-            { x: this.purchaseDate, y: yMin },
-            { x: this.purchaseDate, y: yMax }
-        ];
-
-        const horizontalLineData = [
-            { x: xMin, y: this.purchaseDate },
-            { x: xMax, y: this.purchaseDate }
-        ];
-
-        const outdatedAreaData = [{
-            openX: xMin,
-            x: this.purchaseDate,
-            openY: yMin,
-            y: this.purchaseDate
-        }];
-
-        this.verticalLineSeries.data.setAll(verticalLineData);
-        this.horizontalLineSeries.data.setAll(horizontalLineData);
-        this.outdatedAreaSeries.data.setAll(outdatedAreaData);
+    // Helper to update only outdated shading using current purchaseDate
+    _updateOutdatedAreaOnly() {
+        const xMin = this.xAxis.get('min');
+        const yMin = this.yAxis.get('min');
+        const yMax = this.yAxis.get('max');
+        // Shaded area: from left boundary to purchase date (both axes using purchaseDate like before)
+        this.outdatedAreaSeries.data.setAll([{ openX: xMin, x: this.purchaseDate, openY: yMin, y: this.purchaseDate }]);
     }
 
     /**
@@ -121,6 +94,7 @@ export class PurchaseDateShading {
      */
     updatePurchaseDate(newPurchaseDate) {
         this.purchaseDate = newPurchaseDate;
+        if (this.purchaseDateLine) this.purchaseDateLine.updateValue(newPurchaseDate);
         this.updateVisuals();
     }
 
@@ -128,15 +102,8 @@ export class PurchaseDateShading {
      * Show or hide the purchase date indicators
      */
     setVisible(visible) {
-        if (this.verticalLineSeries) {
-            this.verticalLineSeries.set("visible", visible);
-        }
-        if (this.horizontalLineSeries) {
-            this.horizontalLineSeries.set("visible", visible);
-        }
-        if (this.outdatedAreaSeries) {
-            this.outdatedAreaSeries.set("visible", visible);
-        }
+        if (this.outdatedAreaSeries) this.outdatedAreaSeries.set('visible', visible);
+        if (this.purchaseDateLine) this.purchaseDateLine.setVisible(visible);
     }
 
     /**
@@ -154,30 +121,18 @@ export class PurchaseDateShading {
     setColor(colorHex) {
         const color = am5.color(colorHex);
 
-        if (this.verticalLineSeries) {
-            this.verticalLineSeries.set("stroke", color);
-        }
-        if (this.horizontalLineSeries) {
-            this.horizontalLineSeries.set("stroke", color);
-        }
         if (this.outdatedAreaSeries) {
-            this.outdatedAreaSeries.set("fill", color);
-            this.outdatedAreaSeries.set("stroke", color);
+            this.outdatedAreaSeries.set('fill', color);
+            this.outdatedAreaSeries.set('stroke', color);
         }
+        if (this.purchaseDateLine) this.purchaseDateLine.setColor(colorHex);
     }
 
     /**
      * Dispose of all series and clean up resources
      */
     dispose() {
-        if (this.verticalLineSeries) {
-            this.verticalLineSeries.dispose();
-        }
-        if (this.horizontalLineSeries) {
-            this.horizontalLineSeries.dispose();
-        }
-        if (this.outdatedAreaSeries) {
-            this.outdatedAreaSeries.dispose();
-        }
+        if (this.outdatedAreaSeries) this.outdatedAreaSeries.dispose();
+        if (this.purchaseDateLine) this.purchaseDateLine.dispose();
     }
 }
