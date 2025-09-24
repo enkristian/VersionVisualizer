@@ -22,10 +22,12 @@ export class ChartManager {
         this.dragHandler = null;
         this.purchaseDateShading = null; // New dedicated module
         this.travelDateLine = null; // decoupled visual for travel date
+        this._highlightListenerAttached = false;
+        this._currentValidVersion = null; // Store current valid version for adapters
     }
 
     /**
-     * Initialize the complete chart
+     * Initialize the complete chart with delayed rendering
      */
     async initialize() {
         try {
@@ -33,23 +35,28 @@ export class ChartManager {
             this.createChart();
             this.addCursor();
             this.createAxes();
-            this.createSeries();
-            this.initializePurchaseDateShading(); // Initialize shading module
-            this.initializeTravelDateLine(); // Initialize travel date line
 
-            // Generate and set initial data
+            // Generate and analyze data BEFORE creating series
             const data = this.generateData();
-            this.setData(data);
             this.chartData = data;
 
-            // Initialize drag and drop functionality
-            this.initializeDragAndDrop();
+            // Determine valid version before chart creation
+            const validVersionResult = resolveVersion(this.chartData, this.purchaseDate, this.travelDate, { inclusiveEnd: true });
+            this._currentValidVersion = validVersionResult && validVersionResult.match ? validVersionResult.match.version : null;
 
-            // Apply animations
+            // Create series with pre-determined highlight colors using adapters
+            this.createSeries();
+
+            this.initializePurchaseDateShading();
+            this.initializeTravelDateLine();
+
+            // Set data after series is configured with correct colors
+            this.setData(this.chartData);
+
+            this.initializeDragAndDrop();
             this.applyAnimations();
             this.updateResolvedVersionUI();
 
-            console.log("Chart initialized successfully");
             return true;
         } catch (error) {
             console.error("Failed to initialize chart:", error);
@@ -75,7 +82,8 @@ export class ChartManager {
             wheelX: "none",
             wheelY: "none",
             pinchZoomX: false,
-            paddingLeft: 0
+            paddingLeft: 55,
+            paddingBottom: 55
         }));
     }
 
@@ -143,25 +151,42 @@ export class ChartManager {
     }
 
     /**
-     * Create and configure the column series
+     * Create and configure the column series with adapters for dynamic coloring
      */
     createSeries() {
         this.series = this.chart.series.push(am5xy.ColumnSeries.new(this.root, {
             name: "Version Series",
             xAxis: this.xAxis,
             yAxis: this.yAxis,
-            valueXField: "close",        // X-axis: Version end date (validity period end)
-            openValueXField: "open",     // X-axis: Version start date (validity period start)
-            valueYField: "publishDate",  // Y-axis: Publication date
+            valueXField: "close",
+            openValueXField: "open",
+            valueYField: "publishDate",
             tooltip: am5.Tooltip.new(this.root, {
                 labelText: "Version {version}\nPublished: {publishDateFormatted}\nValid: {validityStartFormatted} - {validityEndFormatted}"
             })
         }));
 
-        // Configure column height - make bars thicker
+        // Configure column template with basic settings
         this.series.columns.template.setAll({
-            height: 20
+            height: 20,
         });
+
+        // Set up dynamic coloring adapters that determine color based on valid version
+        this.series.columns.template.adapters.add("fill", (fill, target) => {
+            const dataItem = target.dataItem;
+            if (!dataItem) return am5.color('#aeb7e2');
+            const ctx = dataItem.dataContext || {};
+            return ctx.version === this._currentValidVersion ? am5.color('#181C56') : am5.color('#aeb7e2');
+        });
+
+        this.series.columns.template.adapters.add("stroke", (stroke, target) => {
+            const dataItem = target.dataItem;
+            if (!dataItem) return am5.color('#aeb7e2');
+            const ctx = dataItem.dataContext || {};
+            return ctx.version === this._currentValidVersion ? am5.color('#181C56') : am5.color('#aeb7e2');
+        });
+
+        console.log(`Series created with valid version: ${this._currentValidVersion}`);
     }
 
     /**
@@ -258,28 +283,6 @@ export class ChartManager {
                 console.log("Drag duration:", dropInfo.dragDuration + "ms");
                 console.log("Total X movement:", dropInfo.totalMovement + "px");
 
-                // Now we have proper before/after data
-                console.log("Data before drop:", {
-                    start: new Date(dropInfo.oldData.open).toLocaleDateString(),
-                    end: new Date(dropInfo.oldData.close).toLocaleDateString(),
-                    published: new Date(dropInfo.oldData.publishDate).toLocaleDateString()
-                });
-                console.log("Data after drop:", {
-                    start: new Date(dropInfo.newData.open).toLocaleDateString(),
-                    end: new Date(dropInfo.newData.close).toLocaleDateString(),
-                    published: new Date(dropInfo.newData.publishDate).toLocaleDateString()
-                });
-
-                // Calculate actual date shifts in days
-                const startShiftDays = Math.round((dropInfo.newData.open - dropInfo.oldData.open) / (1000 * 60 * 60 * 24));
-                const endShiftDays = Math.round((dropInfo.newData.close - dropInfo.oldData.close) / (1000 * 60 * 60 * 24));
-
-                console.log("Validity period changes:", {
-                    startShiftDays: startShiftDays + " days",
-                    endShiftDays: endShiftDays + " days",
-                    durationMaintained: (dropInfo.newData.close - dropInfo.newData.open) === (dropInfo.oldData.close - dropInfo.oldData.open)
-                });
-
                 // Update form values BEFORE refreshing chart data
                 console.log("ChartManager: Updating form values for version", versionIndex);
                 this.updateFormValues(versionIndex);
@@ -368,11 +371,7 @@ export class ChartManager {
     setData(data) {
         this.xAxis.data.setAll(data);
         this.series.data.setAll(data);
-
-        // Update drag handler's data reference
-        if (this.dragHandler) {
-            this.dragHandler.updateChartData(data);
-        }
+        if (this.dragHandler) this.dragHandler.updateChartData(data);
     }
 
     /**
@@ -507,5 +506,23 @@ export class ChartManager {
         }
         const explanationHtml = result.explanation ? `<div style="margin-top:4px;font-size:12px;line-height:1.35;color:#555;">${result.explanation}</div>` : '';
         el.innerHTML = header + explanationHtml;
+        this.updateVersionHighlight(result && result.match ? result.match.version : null);
+    }
+
+    /**
+     * Highlight resolved (valid) version column using adapter-based approach
+     */
+    updateVersionHighlight(validVersionName) {
+        console.log(`updating highlight, valid version: ${validVersionName}, series:`, this.series);
+        if (!this.series) return;
+
+        // Update the stored valid version for adapters
+        this._currentValidVersion = validVersionName;
+
+        // Force re-evaluation of adapters by refreshing the series data
+        const currentData = this.series.data.values;
+        this.series.data.setAll([...currentData]);
+
+        console.log(`Highlight updated for valid version: ${validVersionName}`);
     }
 }
