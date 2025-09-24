@@ -4,6 +4,8 @@
  */
 
 import { DragAndDropHandler } from './dragAndDrop.js';
+import { PurchaseDateShading } from './purchaseDateShading.js';
+import { TravelDateLine } from './travelDateLine.js';
 
 export class ChartManager {
     constructor(containerId) {
@@ -14,7 +16,11 @@ export class ChartManager {
         this.yAxis = null;
         this.series = null;
         this.chartData = [];
+        this.purchaseDate = new Date(2025, 9, 15).getTime(); // Default: Oct 15, 2025
+        this.travelDate = new Date(2025, 10, 1).getTime(); // Default: Nov 1, 2025
         this.dragHandler = null;
+        this.purchaseDateShading = null; // New dedicated module
+        this.travelDateLine = null; // decoupled visual for travel date
     }
 
     /**
@@ -27,6 +33,8 @@ export class ChartManager {
             this.addCursor();
             this.createAxes();
             this.createSeries();
+            this.initializePurchaseDateShading(); // Initialize shading module
+            this.initializeTravelDateLine(); // Initialize travel date line
 
             // Generate and set initial data
             const data = this.generateData();
@@ -136,6 +144,72 @@ export class ChartManager {
         this.series.columns.template.setAll({
             height: 20
         });
+    }
+
+    /**
+     * Initialize the purchase date shading module
+     */
+    initializePurchaseDateShading() {
+        this.purchaseDateShading = new PurchaseDateShading(
+            this.chart,
+            this.xAxis,
+            this.yAxis,
+            this.purchaseDate
+        );
+        // Removed global travelDateChanged event listener (now using direct callback)
+    }
+
+    /**
+     * Initialize the travel date line module
+     */
+    initializeTravelDateLine() {
+        this.travelDateLine = new TravelDateLine(
+            this.chart,
+            this.xAxis,
+            this.yAxis,
+            this.travelDate,
+            (date, live) => {
+                this.travelDate = date;
+                // Update form live so user sees continuous feedback
+                this.updateTravelDateForm(new Date(date));
+            }
+        );
+    }
+
+    /**
+     * Get the current purchase date
+     */
+    getPurchaseDate() {
+        return new Date(this.purchaseDate);
+    }
+
+    /**
+     * Update the purchase date and refresh the visual indicators
+     */
+    updatePurchaseDate(newDate) {
+        this.purchaseDate = newDate.getTime();
+        if (this.purchaseDateShading) {
+            this.purchaseDateShading.updatePurchaseDate(this.purchaseDate);
+        }
+        console.log("Purchase date updated to:", newDate.toLocaleDateString());
+    }
+
+    /**
+     * Get the current travel date
+     */
+    getTravelDate() {
+        return new Date(this.travelDate);
+    }
+
+    /**
+     * Update the travel date and refresh the visual indicators
+     */
+    updateTravelDate(newDate) {
+        this.travelDate = newDate.getTime();
+        if (this.travelDateLine && this.travelDateLine.getTravelDate() !== this.travelDate) {
+            this.travelDateLine.updateTravelDate(this.travelDate);
+        }
+        console.log("Travel date updated to:", newDate.toLocaleDateString());
     }
 
     /**
@@ -333,11 +407,42 @@ export class ChartManager {
     }
 
     /**
+     * Get access to the purchase date shading module for advanced customization
+     */
+    getPurchaseDateShading() {
+        return this.purchaseDateShading;
+    }
+
+    /**
      * Dispose of the chart and clean up resources
      */
     dispose() {
+        if (this.purchaseDateShading) {
+            this.purchaseDateShading.dispose();
+        }
+        if (this.travelDateLine) {
+            this.travelDateLine.dispose();
+            this.travelDateLine = null;
+        }
         if (this.root) {
             this.root.dispose();
         }
+    }
+
+    /**
+     * Update the travel date form field
+     */
+    updateTravelDateForm(newDate) {
+        const travelDateInput = document.getElementById('travelDate');
+        if (travelDateInput) {
+            travelDateInput.value = this.dateToInputFormat(newDate);
+        }
+    }
+
+    /**
+     * Convert date to YYYY-MM-DD format for input fields
+     */
+    dateToInputFormat(date) {
+        return date.toISOString().split('T')[0];
     }
 }

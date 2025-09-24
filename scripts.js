@@ -51,12 +51,44 @@ function initializeFormControls() {
 
     let formsHtml = '';
 
+    // Add Purchase Date control at the top
+    const currentPurchaseDate = chartManager.getPurchaseDate();
+    const currentTravelDate = chartManager.getTravelDate();
+    formsHtml += `
+        <div class="purchase-date-control">
+            <div class="purchase-date-title">📅 Date Controls</div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="purchaseDate">Purchase Date:</label>
+                    <input type="date" id="purchaseDate" value="${dateToInputFormat(currentPurchaseDate)}" />
+                </div>
+                <div class="form-group">
+                    <label for="travelDate">Travel Date (Reisedato):</label>
+                    <input type="date" id="travelDate" value="${dateToInputFormat(currentTravelDate)}" />
+                </div>
+            </div>
+        </div>
+        <hr style="margin: 20px 0; border: 1px solid #ddd;">
+    `;
+
     // Generate forms for all versions
     for (let i = 0; i < chartData.length; i++) {
         formsHtml += createVersionForm(i, chartData[i]);
     }
 
     formsContainer.innerHTML = formsHtml;
+
+    // Add event listener for purchase date
+    const purchaseDateEl = document.getElementById('purchaseDate');
+    if (purchaseDateEl) {
+        purchaseDateEl.addEventListener('change', handlePurchaseDateChange);
+    }
+
+    // Add event listener for travel date
+    const travelDateEl = document.getElementById('travelDate');
+    if (travelDateEl) {
+        travelDateEl.addEventListener('change', handleTravelDateChange);
+    }
 
     // Add event listeners for all versions
     for (let i = 0; i < chartData.length; i++) {
@@ -138,34 +170,50 @@ function dateToInputFormat(date) {
 }
 
 /**
+ * Handle purchase date input changes
+ */
+function handlePurchaseDateChange() {
+    const purchaseDateInput = document.getElementById('purchaseDate')?.value;
+
+    if (purchaseDateInput) {
+        const newPurchaseDate = new Date(purchaseDateInput);
+        console.log("Purchase date changed to:", newPurchaseDate.toLocaleDateString());
+
+        // Update the chart manager with the new purchase date
+        chartManager.updatePurchaseDate(newPurchaseDate);
+    }
+}
+
+/**
+ * Handle travel date input changes
+ */
+function handleTravelDateChange() {
+    const travelDateInput = document.getElementById('travelDate')?.value;
+
+    if (travelDateInput) {
+        const newTravelDate = new Date(travelDateInput);
+        console.log("Travel date changed to:", newTravelDate.toLocaleDateString());
+
+        // Update the chart manager with the new travel date
+        chartManager.updateTravelDate(newTravelDate);
+    }
+}
+
+/**
  * Update form values after drag operations
  */
 function updateFormValues(versionIndex) {
-    console.log("=== UPDATING FORM VALUES ===");
-    console.log("Version index:", versionIndex);
 
     const versionNum = versionIndex + 1;
     const versionData = chartManager.getChartData()[versionIndex];
-
-    console.log("Version data:", versionData);
-    console.log("Looking for form elements:", {
-        publishDate: 'publishDate' + versionNum,
-        startDate: 'startDate' + versionNum,
-        endDate: 'endDate' + versionNum
-    });
 
     const publishDateEl = document.getElementById('publishDate' + versionNum);
     const startDateEl = document.getElementById('startDate' + versionNum);
     const endDateEl = document.getElementById('endDate' + versionNum);
 
-    console.log("Form elements found:", {
-        publishDateEl: !!publishDateEl,
-        startDateEl: !!startDateEl,
-        endDateEl: !!endDateEl
-    });
-
     if (publishDateEl) {
         const newValue = dateToInputFormat(new Date(versionData.publishDate));
+
         console.log("Updating publish date from", publishDateEl.value, "to", newValue);
         publishDateEl.value = newValue;
     }
@@ -181,8 +229,6 @@ function updateFormValues(versionIndex) {
         console.log("Updating end date from", endDateEl.value, "to", newValue);
         endDateEl.value = newValue;
     }
-
-    console.log("=== FORM UPDATE COMPLETE ===");
 }
 
 /**
