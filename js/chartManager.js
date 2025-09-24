@@ -489,22 +489,23 @@ export class ChartManager {
         const el = document.getElementById('resolved-version');
         if (!el) return;
         const result = resolveVersion(this.chartData, this.purchaseDate, this.travelDate, { inclusiveEnd: true });
-        let text = '';
+        let header = '';
         if (result.match) {
             const pub = new Date(result.match.publishDate).toLocaleDateString();
-            text = `Gyldig versjon: <strong>${result.match.version}</strong> (publisert ${pub})`;
+            header = `Gyldig versjon: <strong>${result.match.version}</strong> (publisert ${pub})`;
         } else {
             switch (result.reason) {
                 case 'NO_AVAILABLE_VERSIONS':
-                    text = 'Gyldig versjon: <strong>Ingen</strong> (ingen versjoner publisert ennå)';
+                    header = 'Gyldig versjon: <strong>Ingen</strong> (ingen versjoner publisert ennå)';
                     break;
                 case 'NO_VERSION_COVERS_TRAVEL_DATE':
-                    text = 'Gyldig versjon: <strong>Ingen</strong> (ingen publisert versjon dekker reisedato)';
+                    header = 'Gyldig versjon: <strong>Ingen</strong> (ingen publisert versjon dekker reisedato)';
                     break;
                 default:
-                    text = 'Gyldig versjon: <strong>–</strong>';
+                    header = 'Gyldig versjon: <strong>–</strong>';
             }
         }
-        el.innerHTML = text;
+        const explanationHtml = result.explanation ? `<div style="margin-top:4px;font-size:12px;line-height:1.35;color:#555;">${result.explanation}</div>` : '';
+        el.innerHTML = header + explanationHtml;
     }
 }
