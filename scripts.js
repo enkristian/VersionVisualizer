@@ -49,33 +49,17 @@ function initializeFormControls() {
         return;
     }
 
+    // Set initial values for static date inputs above chart
+    const purchaseInput = document.getElementById('purchaseDate');
+    const travelInput = document.getElementById('travelDate');
+    if (purchaseInput) purchaseInput.value = dateToInputFormat(chartManager.getPurchaseDate());
+    if (travelInput) travelInput.value = dateToInputFormat(chartManager.getTravelDate());
+
     let formsHtml = '';
-
-    // Add Purchase Date control at the top
-    const currentPurchaseDate = chartManager.getPurchaseDate();
-    const currentTravelDate = chartManager.getTravelDate();
-    formsHtml += `
-        <div class="purchase-date-control">
-            <div class="purchase-date-title">📅 Date Controls</div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="purchaseDate">Purchase Date:</label>
-                    <input type="date" id="purchaseDate" value="${dateToInputFormat(currentPurchaseDate)}" />
-                </div>
-                <div class="form-group">
-                    <label for="travelDate">Travel Date (Reisedato):</label>
-                    <input type="date" id="travelDate" value="${dateToInputFormat(currentTravelDate)}" />
-                </div>
-            </div>
-        </div>
-        <hr style="margin: 20px 0; border: 1px solid #ddd;">
-    `;
-
-    // Generate forms for all versions
+    // Generate forms for all versions only (no purchase/travel date controls here)
     for (let i = 0; i < chartData.length; i++) {
         formsHtml += createVersionForm(i, chartData[i]);
     }
-
     formsContainer.innerHTML = formsHtml;
 
     // Add event listener for purchase date

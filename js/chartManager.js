@@ -6,6 +6,7 @@
 import { DragAndDropHandler } from './dragAndDrop.js';
 import { PurchaseDateShading } from './purchaseDateShading.js';
 import { TravelDateLine } from './travelDateLine.js';
+import { resolveVersion } from './versionResolver.js';
 
 export class ChartManager {
     constructor(containerId) {
@@ -46,6 +47,7 @@ export class ChartManager {
 
             // Apply animations
             this.applyAnimations();
+            this.updateResolvedVersionUI();
 
             console.log("Chart initialized successfully");
             return true;
@@ -108,6 +110,14 @@ export class ChartManager {
             renderer: xRenderer,
             tooltip: am5.Tooltip.new(this.root, {})
         }));
+        // Axis title (X)
+        this.xAxis.children.push(am5.Label.new(this.root, {
+            text: "Gyldighetsperiode",
+            x: am5.p50,
+            centerX: am5.p50,
+            paddingTop: 8,
+            fontWeight: "600"
+        }));
 
         // Set X-axis date range (validity period range)
         this.xAxis.set("min", new Date(2025, 8, 23).getTime()); // Sept 23, 2025
@@ -117,6 +127,14 @@ export class ChartManager {
         this.yAxis = this.chart.yAxes.push(am5xy.DateAxis.new(this.root, {
             baseInterval: { timeUnit: "day", count: 1 },
             renderer: am5xy.AxisRendererY.new(this.root, {})
+        }));
+        // Axis title (Y)
+        this.yAxis.children.unshift(am5.Label.new(this.root, {
+            text: "Publiseringsdato",
+            rotation: -90,
+            y: am5.p50,
+            centerY: am5.p50,
+            fontWeight: "600"
         }));
 
         // Set Y-axis date range (publication date range)
@@ -154,9 +172,16 @@ export class ChartManager {
             this.chart,
             this.xAxis,
             this.yAxis,
-            this.purchaseDate
+            this.purchaseDate,
+            (value, live) => {
+                this.purchaseDate = value;
+                this.updatePurchaseDateForm(new Date(value));
+                this.updateResolvedVersionUI();
+                if (!live) {
+                    console.log('Purchase date updated via drag to', new Date(value).toLocaleDateString());
+                }
+            }
         );
-        // Removed global travelDateChanged event listener (now using direct callback)
     }
 
     /**
@@ -170,8 +195,8 @@ export class ChartManager {
             this.travelDate,
             (date, live) => {
                 this.travelDate = date;
-                // Update form live so user sees continuous feedback
                 this.updateTravelDateForm(new Date(date));
+                this.updateResolvedVersionUI();
             }
         );
     }
@@ -191,6 +216,8 @@ export class ChartManager {
         if (this.purchaseDateShading) {
             this.purchaseDateShading.updatePurchaseDate(this.purchaseDate);
         }
+        this.updatePurchaseDateForm(newDate);
+        this.updateResolvedVersionUI();
         console.log("Purchase date updated to:", newDate.toLocaleDateString());
     }
 
@@ -209,6 +236,7 @@ export class ChartManager {
         if (this.travelDateLine && this.travelDateLine.getTravelDate() !== this.travelDate) {
             this.travelDateLine.updateTravelDate(this.travelDate);
         }
+        this.updateResolvedVersionUI();
         console.log("Travel date updated to:", newDate.toLocaleDateString());
     }
 
@@ -259,7 +287,7 @@ export class ChartManager {
                 // Refresh chart data to ensure consistency
                 console.log("ChartManager: Refreshing chart data");
                 this.setData(this.chartData);
-
+                this.updateResolvedVersionUI();
                 console.log("ChartManager: Drop processing complete - form should be updated");
             },
             onDragEnd: (versionIndex, chartData) => {
@@ -444,5 +472,39 @@ export class ChartManager {
      */
     dateToInputFormat(date) {
         return date.toISOString().split('T')[0];
+    }
+
+    /**
+     * Update the purchase date form field
+     */
+    updatePurchaseDateForm(newDate) {
+        const el = document.getElementById('purchaseDate');
+        if (el) el.value = this.dateToInputFormat(newDate);
+    }
+
+    /**
+     * Update the resolved version display in the UI
+     */
+    updateResolvedVersionUI() {
+        const el = document.getElementById('resolved-version');
+        if (!el) return;
+        const result = resolveVersion(this.chartData, this.purchaseDate, this.travelDate, { inclusiveEnd: true });
+        let text = '';
+        if (result.match) {
+            const pub = new Date(result.match.publishDate).toLocaleDateString();
+            text = `Gyldig versjon: <strong>${result.match.version}</strong> (publisert ${pub})`;
+        } else {
+            switch (result.reason) {
+                case 'NO_AVAILABLE_VERSIONS':
+                    text = 'Gyldig versjon: <strong>Ingen</strong> (ingen versjoner publisert ennå)';
+                    break;
+                case 'NO_VERSION_COVERS_TRAVEL_DATE':
+                    text = 'Gyldig versjon: <strong>Ingen</strong> (ingen publisert versjon dekker reisedato)';
+                    break;
+                default:
+                    text = 'Gyldig versjon: <strong>–</strong>';
+            }
+        }
+        el.innerHTML = text;
     }
 }

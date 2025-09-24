@@ -5,11 +5,12 @@ import { InteractiveDateLine } from './interactiveDateLine.js';
  */
 
 export class PurchaseDateShading {
-    constructor(chart, xAxis, yAxis, purchaseDate) {
+    constructor(chart, xAxis, yAxis, purchaseDate, onPurchaseDateChange = null) {
         this.chart = chart;
         this.xAxis = xAxis;
         this.yAxis = yAxis;
         this.purchaseDate = purchaseDate;
+        this.onPurchaseDateChange = onPurchaseDateChange; // callback(value:number, live:boolean)
         // Deprecated individual line series now replaced by generic interactive line
         this.purchaseDateLine = null; // InteractiveDateLine instance (crosshair)
         this.outdatedAreaSeries = null;
@@ -55,10 +56,10 @@ export class PurchaseDateShading {
      * Create the cross-hair lines for purchase date only
      */
     createPurchaseDateLines() {
-        // Replace two separate series with one InteractiveDateLine crosshair
+        // Replace two separate series with one InteractiveDateLine vertical line
         this.purchaseDateLine = new InteractiveDateLine(this.chart, this.xAxis, this.yAxis, {
             value: this.purchaseDate,
-            axisMode: 'x', // changed from 'both' to allow horizontal drag only
+            axisMode: 'both',
             color: '#999',
             onChange: (val, live) => {
                 this.purchaseDate = val;
@@ -66,6 +67,9 @@ export class PurchaseDateShading {
                     this.updateVisuals();
                 } else if (this.outdatedAreaSeries) {
                     this._updateOutdatedAreaOnly();
+                }
+                if (typeof this.onPurchaseDateChange === 'function') {
+                    this.onPurchaseDateChange(val, live);
                 }
             }
         });

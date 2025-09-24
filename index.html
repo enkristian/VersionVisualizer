@@ -132,12 +132,99 @@
         .instructions ul {
             margin-bottom: 0;
         }
+
+        .date-controls {
+            width: auto;
+            max-width: 520px;
+            background: #ffffff;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 12px 14px;
+            margin: 0 0 16px 0;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        }
+
+        .date-controls h2 {
+            font-size: 15px;
+            margin: 0 0 10px 0;
+            font-weight: 600;
+            color: #444;
+        }
+
+        .date-fields {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .date-fields .date-field {
+            flex: 1 1 200px;
+            margin-bottom: 0;
+        }
+
+        .date-field {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 10px;
+        }
+
+        .date-field label {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: #555;
+        }
+
+        .date-field input {
+            padding: 6px 8px;
+            font-size: 13px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background: #fafafa;
+            transition: border-color .15s, background .15s;
+        }
+
+        .date-field input:focus {
+            outline: none;
+            border-color: #007acc;
+            background: #fff;
+            box-shadow: 0 0 0 2px rgba(0,122,204,0.15);
+        }
+
+        .resolved-version {
+            margin: 0 0 16px 0;
+            padding: 8px 12px;
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #333;
+            line-height: 1.4;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        }
+
+        .resolved-version strong {
+            color: #007acc;
+        }
     </style>
 </head>
 <body>
+<h1>Version Visualization Chart</h1>
     <div class="container">
-        <h1>Version Visualization Chart</h1>
-
+        <div class="date-controls">
+            <h2>Datoer</h2>
+            <div class="date-fields">
+                <div class="date-field">
+                    <label for="purchaseDate">Kjøpsdato</label>
+                    <input type="date" id="purchaseDate" />
+                </div>
+                <div class="date-field">
+                    <label for="travelDate">Reisedato</label>
+                    <input type="date" id="travelDate" />
+                </div>
+            </div>
+        </div>
+        <div id="resolved-version" class="resolved-version">Gyldig versjon: <strong>–</strong></div>
         <!-- Chart Container -->
         <div id="chartdiv"></div>
 
