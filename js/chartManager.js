@@ -7,7 +7,8 @@ import { DragAndDropHandler } from './dragAndDrop.js';
 import { PurchaseDateShading } from './purchaseDateShading.js';
 import { TravelDateLine } from './travelDateLine.js';
 import { resolveVersion } from './versionResolver.js';
-import {DataGenerator} from "./dataGenerator.js";
+import { DataGenerator } from "./dataGenerator.js";
+import { addVersionLabels } from './versionLabels.js';
 
 export class ChartManager {
     constructor(containerId) {
@@ -24,7 +25,6 @@ export class ChartManager {
         this.purchaseDateShading = null; // New dedicated module
         this.travelDateLine = null; // decoupled visual for travel date
         this._currentValidVersion = null; // Store current valid version for adapters
-        this._pendingData = null; // store data until series exists
     }
 
     /**
@@ -38,8 +38,7 @@ export class ChartManager {
             this.createAxes();
 
             // Generate and analyze data BEFORE creating series
-            const data = new DataGenerator().generateData();
-            this.chartData = data;
+            this.chartData = new DataGenerator().generateData();
 
             // Determine valid version before chart creation
             const validVersionResult = resolveVersion(this.chartData, this.purchaseDate, this.travelDate, { inclusiveEnd: true });
@@ -168,9 +167,10 @@ export class ChartManager {
         }));
 
         // Configure column template with basic settings
-        this.series.columns.template.setAll({
-            height: 20,
-        });
+        this.series.columns.template.setAll({ height: 20 });
+
+        // Attach version labels (extracted module)
+        addVersionLabels(this.root, this.series, () => this._currentValidVersion, { fontSize: 11, minVisibleWidth: 22 });
 
         // Set up dynamic coloring adapters that determine color based on valid version
         this.series.columns.template.adapters.add("fill", (fill, target) => {
@@ -201,9 +201,6 @@ export class ChartManager {
                 this.purchaseDate = value;
                 this.updatePurchaseDateForm(new Date(value));
                 this.updateResolvedVersionUI();
-                if (!live) {
-                    console.log('Purchase date updated via drag to', new Date(value).toLocaleDateString());
-                }
             }
         );
     }
