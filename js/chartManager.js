@@ -7,6 +7,7 @@ import { DragAndDropHandler } from './dragAndDrop.js';
 import { PurchaseDateShading } from './purchaseDateShading.js';
 import { TravelDateLine } from './travelDateLine.js';
 import { resolveVersion } from './versionResolver.js';
+import {DataGenerator} from "./dataGenerator.js";
 
 export class ChartManager {
     constructor(containerId) {
@@ -22,8 +23,8 @@ export class ChartManager {
         this.dragHandler = null;
         this.purchaseDateShading = null; // New dedicated module
         this.travelDateLine = null; // decoupled visual for travel date
-        this._highlightListenerAttached = false;
         this._currentValidVersion = null; // Store current valid version for adapters
+        this._pendingData = null; // store data until series exists
     }
 
     /**
@@ -37,7 +38,7 @@ export class ChartManager {
             this.createAxes();
 
             // Generate and analyze data BEFORE creating series
-            const data = this.generateData();
+            const data = new DataGenerator().generateData();
             this.chartData = data;
 
             // Determine valid version before chart creation
@@ -185,8 +186,6 @@ export class ChartManager {
             const ctx = dataItem.dataContext || {};
             return ctx.version === this._currentValidVersion ? am5.color('#181C56') : am5.color('#aeb7e2');
         });
-
-        console.log(`Series created with valid version: ${this._currentValidVersion}`);
     }
 
     /**
@@ -238,12 +237,9 @@ export class ChartManager {
      */
     updatePurchaseDate(newDate) {
         this.purchaseDate = newDate.getTime();
-        if (this.purchaseDateShading) {
-            this.purchaseDateShading.updatePurchaseDate(this.purchaseDate);
-        }
+        if (this.purchaseDateShading) this.purchaseDateShading.updatePurchaseDate(this.purchaseDate);
         this.updatePurchaseDateForm(newDate);
         this.updateResolvedVersionUI();
-        console.log("Purchase date updated to:", newDate.toLocaleDateString());
     }
 
     /**
@@ -262,7 +258,6 @@ export class ChartManager {
             this.travelDateLine.updateTravelDate(this.travelDate);
         }
         this.updateResolvedVersionUI();
-        console.log("Travel date updated to:", newDate.toLocaleDateString());
     }
 
     /**
@@ -270,35 +265,13 @@ export class ChartManager {
      */
     initializeDragAndDrop() {
         const callbacks = {
-            onDragStart: (dataContext) => {
-                console.log("ChartManager: Drag started for", dataContext.version);
-            },
-            onDragging: (dataContext, dates) => {
-                // Real-time feedback during dragging (optional logging to avoid spam)
-                // console.log("ChartManager: Dragging", dataContext.version, "New dates:", dates);
-            },
-            onDrop: (versionIndex, chartData, dropInfo) => {
-                console.log("=== ChartManager: DROP CALLBACK ===");
-                console.log("Version index:", versionIndex);
-                console.log("Drag duration:", dropInfo.dragDuration + "ms");
-                console.log("Total X movement:", dropInfo.totalMovement + "px");
-
-                // Update form values BEFORE refreshing chart data
-                console.log("ChartManager: Updating form values for version", versionIndex);
+            onDragStart: () => {},
+            onDrop: (versionIndex) => {
                 this.updateFormValues(versionIndex);
-
-                // Refresh chart data to ensure consistency
-                console.log("ChartManager: Refreshing chart data");
                 this.setData(this.chartData);
                 this.updateResolvedVersionUI();
-                console.log("ChartManager: Drop processing complete - form should be updated");
-            },
-            onDragEnd: (versionIndex, chartData) => {
-                // Legacy callback - still supported for backward compatibility
-                console.log("ChartManager: Legacy dragEnd callback for version", versionIndex);
             }
         };
-
         this.dragHandler = new DragAndDropHandler(
             this.chart,
             this.xAxis,
@@ -307,62 +280,7 @@ export class ChartManager {
             this.chartData,
             callbacks
         );
-
-        // Enable drag functionality
         this.dragHandler.enable();
-    }
-
-    /**
-     * Generate sample data for the chart
-     */
-    generateData() {
-        const data = [];
-        const startDate = new Date(2025, 8, 23); // Sept 23, 2025
-        const endDate = new Date(2026, 8, 23);   // Sept 23, 2026
-        const totalDays = Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24));
-        const versionCount = 4;
-
-        for (let i = 0; i < versionCount; i++) {
-            // Publication date spread across the year
-            let publishDayOffset = Math.floor(i * totalDays / (versionCount - 1)) + Math.random() * 30 - 15;
-            publishDayOffset = Math.max(0, Math.min(publishDayOffset, totalDays - 90));
-
-            const publishDate = new Date(startDate.getTime() + publishDayOffset * 24 * 60 * 60 * 1000);
-
-            // Version start date (must be >= publication date)
-            const versionStartOffset = publishDayOffset + Math.random() * 30;
-            let versionStart = new Date(startDate.getTime() + versionStartOffset * 24 * 60 * 60 * 1000);
-
-            // Ensure version start is never before publication date
-            if (versionStart < publishDate) {
-                versionStart = new Date(publishDate.getTime());
-            }
-
-            // Version end date (must be > start date)
-            const versionDuration = 30 + Math.random() * 90;
-            let versionEnd = new Date(versionStart.getTime() + versionDuration * 24 * 60 * 60 * 1000);
-
-            // Ensure we don't exceed chart bounds
-            if (versionEnd > endDate) {
-                versionEnd = new Date(endDate.getTime());
-                if (versionEnd <= versionStart) {
-                    versionEnd = new Date(versionStart.getTime() + 24 * 60 * 60 * 1000);
-                }
-            }
-
-            data.push({
-                category: "Version " + (i + 1),
-                version: "v" + (i + 1) + ".0",
-                open: versionStart.getTime(),
-                close: versionEnd.getTime(),
-                publishDate: publishDate.getTime(),
-                publishDateFormatted: publishDate.toLocaleDateString(),
-                validityStartFormatted: versionStart.toLocaleDateString(),
-                validityEndFormatted: versionEnd.toLocaleDateString()
-            });
-        }
-
-        return data;
     }
 
     /**
@@ -394,15 +312,8 @@ export class ChartManager {
      * Update form values (if form module is available)
      */
     updateFormValues(versionIndex) {
-        // This will be called by the drag handler
-        // Form integration can be added here or handled by a separate module
-        const event = new CustomEvent('chartDataChanged', {
-            detail: { versionIndex, data: this.chartData[versionIndex] }
-        });
-        document.dispatchEvent(event);
-
-        // Debugging output
-        console.log("ChartManager: Form values updated for version", versionIndex, this.chartData[versionIndex]);
+        const ev = new CustomEvent('chartDataChanged', { detail: { versionIndex, data: this.chartData[versionIndex] } });
+        document.dispatchEvent(ev);
     }
 
     /**
@@ -423,22 +334,7 @@ export class ChartManager {
     /**
      * Enable/disable drag functionality
      */
-    setDragEnabled(enabled) {
-        if (this.dragHandler) {
-            if (enabled) {
-                this.dragHandler.enable();
-            } else {
-                this.dragHandler.disable();
-            }
-        }
-    }
-
-    /**
-     * Get access to the purchase date shading module for advanced customization
-     */
-    getPurchaseDateShading() {
-        return this.purchaseDateShading;
-    }
+    setDragEnabled(enabled) { if (this.dragHandler) (enabled ? this.dragHandler.enable() : this.dragHandler.disable()); }
 
     /**
      * Dispose of the chart and clean up resources
@@ -513,16 +409,9 @@ export class ChartManager {
      * Highlight resolved (valid) version column using adapter-based approach
      */
     updateVersionHighlight(validVersionName) {
-        console.log(`updating highlight, valid version: ${validVersionName}, series:`, this.series);
-        if (!this.series) return;
-
-        // Update the stored valid version for adapters
         this._currentValidVersion = validVersionName;
-
-        // Force re-evaluation of adapters by refreshing the series data
-        const currentData = this.series.data.values;
-        this.series.data.setAll([...currentData]);
-
-        console.log(`Highlight updated for valid version: ${validVersionName}`);
+        if (!this.series) return;
+        const current = this.series.data.values;
+        this.series.data.setAll([...current]);
     }
 }

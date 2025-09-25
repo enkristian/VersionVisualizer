@@ -73,14 +73,18 @@ export class InteractiveDateLine {
     this.verticalSeries.strokes.template.set('interactive', false);
 
     let axisMin = 0, axisMax = 0, axisSpan = 0, plotW = 1;
+    let isDraggingVertical = false; // Flag to prevent interference
+
     tmpl.events.on('dragstart', () => {
+      isDraggingVertical = true;
       axisMin = this.xAxis.get('min');
       axisMax = this.xAxis.get('max');
       axisSpan = axisMax - axisMin;
       plotW = this.chart.plotContainer.width() || 1;
     });
+
     tmpl.events.on('dragged', (ev) => {
-      if (!ev.point) return;
+      if (!ev.point || !isDraggingVertical) return;
       const local = this.chart.plotContainer.toLocal(ev.point);
       let xPx = local.x;
       if (xPx < 0) xPx = 0; if (xPx > plotW) xPx = plotW;
@@ -89,11 +93,19 @@ export class InteractiveDateLine {
       if (newDate < axisMin) newDate = axisMin;
       if (newDate > axisMax) newDate = axisMax;
       if (newDate === this.value) return;
+
       this.value = newDate;
+      // Only update vertical line during vertical drag
       this._updateVerticalLineOnly();
+      // Also update horizontal line to follow but don't trigger horizontal drag
+      if (this.horizontalSeries) {
+        this._updateHorizontalLineOnly();
+      }
       if (typeof this.onChange === 'function') this.onChange(this.value, true);
     });
+
     tmpl.events.on('dragstop', () => {
+      isDraggingVertical = false;
       this.updateVisuals();
       if (typeof this.onChange === 'function') this.onChange(this.value, false);
     });
@@ -140,13 +152,18 @@ export class InteractiveDateLine {
       const local = this.chart.plotContainer.toLocal(ev.point);
       let yPx = local.y;
       if (yPx < 0) yPx = 0; if (yPx > plotH) yPx = plotH;
-      const ratio = plotH === 0 ? 0 : yPx / plotH; // top->bottom
+      // Invert the ratio so dragging up increases date values (future), dragging down decreases (past)
+      const ratio = plotH === 0 ? 0 : (plotH - yPx) / plotH; // bottom->top (inverted)
       let newDate = yMin + ratio * ySpan;
       if (newDate < yMin) newDate = yMin;
       if (newDate > yMax) newDate = yMax;
       if (newDate === this.value) return;
       this.value = newDate;
       this._updateHorizontalLineOnly();
+      // Also update vertical line to follow but don't trigger vertical drag
+      if (this.verticalSeries) {
+        this._updateVerticalLineOnly();
+      }
       if (typeof this.onChange === 'function') this.onChange(this.value, true);
     });
     htmpl.events.on('dragstop', () => {
@@ -225,4 +242,3 @@ export class InteractiveDateLine {
     if (this.horizontalHit) { this.horizontalHit.dispose(); this.horizontalHit = null; }
   }
 }
-

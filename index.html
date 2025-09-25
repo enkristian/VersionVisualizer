@@ -33,7 +33,7 @@
         #chartdiv {
             width: 100%;
             height: 500px;
-            background-color: white;
+            background-color: #fff;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             margin-bottom: 30px;
@@ -55,7 +55,7 @@
         .version-controls {
             margin-bottom: 20px;
             padding: 15px;
-            background-color: white;
+            background-color: #fff;
             border-radius: 5px;
             border-left: 4px solid #007acc;
         }
@@ -192,6 +192,7 @@
         }
 
         .resolved-version {
+            height: 4em;
             margin: 0 0 16px 0;
             padding: 8px 12px;
             background: #ffffff;
@@ -206,6 +207,27 @@
         .resolved-version strong {
             color: #181C56;
         }
+
+        .chart-legend {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 8px 12px;
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #333;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+            flex-wrap: wrap;
+        }
+
+        .chart-legend-item { display:flex; align-items:center; gap:6px; }
+        .chart-legend-icon { width: 14px; height: 14px; border: 1px dashed #999; background-color: #aaa; flex-shrink: 0; }
+        .legend-line { width:28px; height:2px; border-radius:1px; flex-shrink:0; }
+        .legend-line.travel { background:#ff4444; }
+        .legend-line.purchase { background:#999; }
     </style>
 </head>
 <body>
@@ -225,16 +247,26 @@
             </div>
         </div>
         <div id="resolved-version" class="resolved-version">Gyldig versjon: <strong>–</strong></div>
+
+        <div class="chart-legend">
+            <div class="chart-legend-item">
+                <div class="chart-legend-icon"></div><span>Fortid (før kjøpsdato)</span>
+            </div>
+            <div class="chart-legend-item">
+                <div class="legend-line purchase"></div><span>Kjøpsdato</span>
+            </div>
+            <div class="chart-legend-item">
+                <div class="legend-line travel"></div><span>Reisedato</span>
+            </div>
+        </div>
         <!-- Chart Container -->
         <div id="chartdiv"></div>
+
+
 
         <!-- Controls Section -->
         <div class="controls">
             <h3>Version Controls</h3>
-
-            <div class="drag-toggle">
-                <button id="dragToggle">Disable Drag</button>
-            </div>
 
             <!-- Form controls will be dynamically generated here -->
             <div id="version-forms"></div>
